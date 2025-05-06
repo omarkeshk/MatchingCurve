@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Aircraft Performance Curves</title>
+		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+		<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+		<style>
+			.container {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 20px;
+				height: 100vh;
+			}
+
+			.sidebar {
+				flex: 1;
+				min-width: 300px;
+				padding: 20px;
+				background: #f0f0f0;
+				overflow-y: auto;
+				max-height: 100vh;
+				position: relative;
+				box-sizing: border-box;
+			}
+
+			.input-group {
+				margin-bottom: 15px;
+			}
+
+			label {
+				display: block;
+				margin-bottom: 5px;
+				font-weight: bold;
+			}
+
+			input {
+				width: 100%;
+				padding: 8px;
+				border: 1px solid #ddd;
+				border-radius: 4px;
+			}
+
+			button {
+				padding: 10px 20px;
+				background: #007bff;
+				color: white;
+				border: none;
+				border-radius: 4px;
+				cursor: pointer;
+				width: 100%;
+			}
+
+			button:hover {
+				background: #0056b3;
+			}
+
+			.chart-container {
+				flex: 3;
+				min-width: 500px;
+				height: 80vh;
+				padding: 20px;
+				box-sizing: border-box;
+			}
+
+			.sticky-button {
+				position: sticky;
+				bottom: 0;
+				background: #f0f0f0;
+				padding: 10px 0;
+				margin-top: 10px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="sidebar">
+				<h2>
+					Aero ASU <br />
+					Matching Curve
+				</h2>
+				<div class="input-group">
+					<label for="bankAngle">Bank Angle (°)</label>
+					<input type="number" id="bankAngle" value="34" step="0.1" />
+				</div>
+				<div class="input-group">
+					<label for="ROC">Rate of Climb (m/s)</label>
+					<input type="number" id="ROC" value="3" step="0.1" />
+				</div>
+				<div class="input-group">
+					<label for="rho">Air Density (kg/m³)</label>
+					<input type="number" id="rho" value="1.22" step="0.01" />
+				</div>
+				<div class="input-group">
+					<label for="Vcruise">Cruise Speed (m/s)</label>
+					<input type="number" id="Vcruise" value="20" step="1" />
+				</div>
+				<div class="input-group">
+					<label for="Vstall">Stall Speed (m/s)</label>
+					<input type="number" id="Vstall" value="7" step="0.1" />
+				</div>
+				<div class="input-group">
+					<label for="turnVelocity">Turn Velocity (m/s)</label>
+					<input
+						type="number"
+						id="turnVelocity"
+						value="16"
+						step="1"
+					/>
+				</div>
+				<div class="input-group">
+					<label for="Sg">Ground Run (m)</label>
+					<input type="number" id="Sg" value="10" step="1" />
+				</div>
+				<div class="input-group">
+					<label for="aspectRatio">Aspect Ratio</label>
+					<input
+						type="number"
+						id="aspectRatio"
+						value="6"
+						step="0.1"
+					/>
+				</div>
+				<div class="input-group">
+					<label for="e">Span Efficiency</label>
+					<input type="number" id="e" value="0.8" step="0.01" />
+				</div>
+				<div class="input-group">
+					<label for="mu">Friction Constant</label>
+					<input type="number" id="mu" value="0.15" step="0.01" />
+				</div>
+				<div class="input-group">
+					<label for="Clmax">Max Lift Coeff.</label>
+					<input type="number" id="Clmax" value="1.2" step="0.1" />
+				</div>
+				<div class="input-group">
+					<label for="rhoCruise">Cruise Air Density (kg/m³)</label>
+					<input
+						type="number"
+						id="rhoCruise"
+						value="0.855"
+						step="0.001"
+					/>
+				</div>
+				<div class="input-group">
+					<label for="CDmin">CD min</label>
+					<input
+						type="number"
+						id="CDmin"
+						value="0.045"
+						step="0.001"
+					/>
+				</div>
+				<div class="input-group">
+					<label for="CDTO">CD TO</label>
+					<input type="number" id="CDTO" value="0.06" step="0.001" />
+				</div>
+				<div class="input-group">
+					<label for="CLTO">CL TO</label>
+					<input type="number" id="CLTO" value="0.9" step="0.01" />
+				</div>
+				<div
+					style="
+						position: sticky;
+						bottom: 0;
+						background: #f0f0f0;
+						padding: 10px;
+					"
+				>
+					<div class="sticky-button">
+						<button onclick="updateChart()">Update Chart</button>
+					</div>
+				</div>
+			</div>
+			<div class="chart-container">
+				<canvas id="myChart"></canvas>
+			</div>
+		</div>
+
+		<script>
+			let myChart = null
+
+			function getInputValue(id) {
+				return parseFloat(document.getElementById(id).value)
+			}
+
+			function updateChart() {
+				// Get all input values
+				const inputs = {
+					bankAngle: getInputValue("bankAngle"),
+					ROC: getInputValue("ROC"),
+					rho: getInputValue("rho"),
+					Vcruise: getInputValue("Vcruise"),
+					Vstall: getInputValue("Vstall"),
+					turnVelocity: getInputValue("turnVelocity"),
+					Sg: getInputValue("Sg"),
+					aspectRatio: getInputValue("aspectRatio"),
+					e: getInputValue("e"),
+					mu: getInputValue("mu"),
+					Clmax: getInputValue("Clmax"),
+					rhoCruise: getInputValue("rhoCruise"),
+					CDmin: getInputValue("CDmin"),
+					CDTO: getInputValue("CDTO"),
+					CLTO: getInputValue("CLTO"),
+					g: 9.81,
+				}
+
+				// Calculate derived parameters
+				const phiRad = (inputs.bankAngle * Math.PI) / 180
+				const n = 1 / Math.cos(phiRad)
+				const k = 1 / (Math.PI * inputs.aspectRatio * inputs.e)
+				const VV = 0.8 * inputs.Vcruise
+				const VLOF = 1.1 * inputs.Vstall
+
+				// Generate W/S range
+				const wsValues = Array.from(
+					{ length: 100 },
+					(_, i) => 10 + i * 5
+				)
+				let maxTw = 0
+
+				// Check if chart exists, if not initialize datasets
+				if (!myChart) {
+					myChart = new Chart(
+						document.getElementById("myChart").getContext("2d"),
+						{
+							type: "line",
+							data: { datasets: [] },
+							options: {
+								responsive: true,
+								maintainAspectRatio: false,
+								scales: {
+									x: {
+										type: "linear",
+										title: {
+											display: true,
+											text: "W/S (N/m²)",
+										},
+									},
+									y: {
+										type: "linear",
+										title: { display: true, text: "T/W" },
+										min: 0,
+									},
+								},
+								plugins: {
+									zoom: {
+										zoom: {
+											wheel: {
+												enabled: true,
+											},
+											pinch: {
+												enabled: true,
+											},
+											mode: "xy",
+										},
+										pan: {
+											enabled: true,
+											mode: "xy",
+											speed: 0.1,
+										},
+									},
+								},
+							},
+						}
+					)
+				}
+
+				// Update only the datasets that have changed
+				const updateDataset = (label, data, color, borderDash = []) => {
+					const datasetIndex = myChart.data.datasets.findIndex(
+						(ds) => ds.label === label
+					)
+					if (datasetIndex !== -1) {
+						myChart.data.datasets[datasetIndex].data = data
+					} else {
+						myChart.data.datasets.push({
+							label: label,
+							data: data,
+							borderColor: color,
+							fill: false,
+							borderDash: borderDash,
+						})
+					}
+				}
+
+				// Equation 1: Level Turn
+				const q1 = 0.5 * inputs.rho * inputs.turnVelocity ** 2
+				const data1 = wsValues.map((ws) => {
+					const tw = q1 * (inputs.CDmin / ws + k * (n / q1) ** 2 * ws)
+					maxTw = Math.max(maxTw, tw)
+					return { x: ws, y: tw }
+				})
+				updateDataset("Level Turn", data1, "#ff6384")
+
+				// Equation 2: Rate of Climb
+				const q2 = 0.5 * inputs.rho * VV ** 2
+				const data2 = wsValues.map((ws) => {
+					const tw =
+						inputs.ROC / VV +
+						q2 * (inputs.CDmin / ws) +
+						(k / q2) * ws
+					maxTw = Math.max(maxTw, tw)
+					return { x: ws, y: tw }
+				})
+				updateDataset("Rate of Climb", data2, "#36a2eb")
+
+				// Equation 3: Take-Off Distance
+				const q3 = 0.25 * inputs.rho * VLOF ** 2
+				const data3 = wsValues.map((ws) => {
+					const term1 = VLOF ** 2 / (2 * inputs.g * inputs.Sg)
+					const term2 = q3 * (inputs.CDTO / ws)
+					const term3 = inputs.mu * (1 - (q3 * inputs.CLTO) / ws)
+					const tw = term1 + term2 + term3
+					maxTw = Math.max(maxTw, tw)
+					return { x: ws, y: tw }
+				})
+				updateDataset("Take-Off Distance", data3, "#4bc0c0")
+
+				// Equation 4: Cruise Airspeed
+				const q4 = 0.5 * inputs.rhoCruise * inputs.Vcruise ** 2
+				const data4 = wsValues.map((ws) => {
+					const tw = q4 * (inputs.CDmin / ws) + (k / q4) * ws
+					maxTw = Math.max(maxTw, tw)
+					return { x: ws, y: tw }
+				})
+				updateDataset("Cruise Airspeed", data4, "#ff9f40")
+
+				// Equation 5: Stall Speed
+				const ws5 = 0.5 * inputs.rho * inputs.Vstall ** 2 * inputs.Clmax
+				updateDataset(
+					"Stall Speed",
+					[
+						{ x: ws5, y: 0 },
+						{ x: ws5, y: maxTw * 1.1 },
+					],
+					"#9966ff",
+					[5, 5]
+				)
+
+				// Update chart scales and re-render
+				myChart.options.scales.y.max = maxTw * 1.1
+				myChart.update()
+			}
+
+			// Initial chart render
+
+			updateChart()
+		</script>
+	</body>
+</html>
